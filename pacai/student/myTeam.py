@@ -1,3 +1,4 @@
+from pacai.agents.capture.capture import CaptureAgent
 from pacai.util import reflection
 # from pacai.agents.capture.offense import OffensiveReflexAgent
 # from pacai.agents.capture.defense import DefensiveReflexAgent
@@ -51,7 +52,6 @@ class OffensiveAgent(ReflexCaptureAgent):
         }
     
     def getAction(self, gameState):
-        return Directions.STOP
         return super().getAction(gameState)
 
 
@@ -110,7 +110,15 @@ class DefensiveAgent(ReflexCaptureAgent):
             'invaderFoodDistance': -1
         }
     def getAction(self, gameState):
-        return Directions.STOP
         return super().getAction(gameState)
 
     
+
+
+class GeneralAgent(CaptureAgent):
+    def __init__(self, index, **kwargs):
+        super().__init__(index)
+
+    def chooseAction(self, gameState):  
+        return None  
+
