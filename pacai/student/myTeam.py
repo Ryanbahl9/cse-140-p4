@@ -43,12 +43,20 @@ class OffensiveAgent(ReflexCaptureAgent):
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
+        # compute dist to enemy
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
+        if (len(defenders) > 0):
+            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in defenders]
+            features['distanceToEnemy'] = min(dists)
+        
         return features
 
     def getWeights(self, gameState, action):
         return {
             'successorScore': 100,
-            'distanceToFood': -1
+            'distanceToFood': -1,
+            'distanceToEnemy': 0.4,
         }
     
     def getAction(self, gameState):
@@ -78,8 +86,8 @@ class DefensiveAgent(ReflexCaptureAgent):
         
         
         if (len(invaders) > 0):
-            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-            features['invaderDistance'] = min(dists)
+            dists = [(self.getMazeDistance(myPos, a.getPosition()), a) for a in invaders]
+            features['invaderDistance'], closestInvader = min(dists)
 
         if (action == Directions.STOP):
             features['stop'] = 1
@@ -88,15 +96,18 @@ class DefensiveAgent(ReflexCaptureAgent):
         if (action == rev):
             features['reverse'] = 1
         
+        # calculates invaderFoodDistance which is the distance to the 
+        # food closest to the closest invader 
         if (len(invaders) > 0):
             foodList = self.getFoodYouAreDefending(successor).asList()
 
             # This should always be True, but better safe than sorry.
             if (len(foodList) > 0):
                 myPos = successor.getAgentState(self.index).getPosition()
-                minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-                features['distanceToFood'] = minDistance
-            features['invaderFoodDistance']
+                invaderPos = closestInvader.getPosition()
+                closestFood = min([(self.getMazeDistance(invaderPos, food), food) for food in foodList])
+                # print(self.getMazeDistance(myPos, closestFood[1]))
+                features['invaderFoodDistance'] = self.getMazeDistance(myPos, closestFood[1])
 
         return features
 
