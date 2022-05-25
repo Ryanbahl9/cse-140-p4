@@ -1,3 +1,4 @@
+from pacai.core import distance
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.util import reflection
 # from pacai.agents.capture.offense import OffensiveReflexAgent
@@ -47,8 +48,13 @@ class OffensiveAgent(ReflexCaptureAgent):
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
         if (len(defenders) > 0):
+            # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in defenders]
-            features['distanceToEnemy'] = min(dists)
+            minDist = min(dists)
+            if (minDist < 3):
+                features['distanceToEnemy'] = min(dists)
+            else:
+                features['distanceToEnemy'] = 0
         
         return features
 
@@ -56,7 +62,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         return {
             'successorScore': 100,
             'distanceToFood': -1,
-            'distanceToEnemy': 0.4,
+            'distanceToEnemy': -10,
         }
     
     def getAction(self, gameState):
@@ -118,7 +124,7 @@ class DefensiveAgent(ReflexCaptureAgent):
             'invaderDistance': -10,
             'stop': -100,
             'reverse': -2,
-            'invaderFoodDistance': -1
+            'invaderFoodDistance': 0
         }
     def getAction(self, gameState):
         return super().getAction(gameState)
