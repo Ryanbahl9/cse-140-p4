@@ -10,7 +10,7 @@ from pacai.student.multiagents import ReflexAgent
 
 def createTeam(firstIndex, secondIndex, isRed,
         first = 'pacai.agents.capture.dummy.DummyAgent',
-        second = 'pacai.agents.capture.dummy.DummyAgent'):
+        second = 'pacai.agents.capture.dummy.DummyAgent', **kwargs):
     """
     This function should return a list of two agents that will form the capture team,
     initialized using firstIndex and secondIndex as their agent indexed.
@@ -22,13 +22,16 @@ def createTeam(firstIndex, secondIndex, isRed,
     secondAgent = DefensiveAgent
 
     return [
-        firstAgent(firstIndex),
-        secondAgent(secondIndex),
+        firstAgent(firstIndex, **kwargs),
+        secondAgent(secondIndex, **kwargs),
     ]
 
 class OffensiveAgent(ReflexCaptureAgent):
-    def __init__(self, index, **kwargs):
+    def __init__(self, index, runDist = 5, enemyDistWeight = -10, **kwargs):
         super().__init__(index)
+
+        self._runDist = int(runDist)
+        self._enemyDistWeight = int(enemyDistWeight)
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -45,14 +48,14 @@ class OffensiveAgent(ReflexCaptureAgent):
             features['distanceToFood'] = minDistance
 
         # compute dist to enemy
+        x = self._runDist
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
         if (len(defenders) > 0):
-            # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in defenders]
             minDist = min(dists)
-            if (minDist < 3):
-                features['distanceToEnemy'] = min(dists)
+            if (minDist < x):
+                features['distanceToEnemy'] = x - minDist
             else:
                 features['distanceToEnemy'] = 0
         
@@ -62,7 +65,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         return {
             'successorScore': 100,
             'distanceToFood': -1,
-            'distanceToEnemy': -10,
+            'distanceToEnemy': self._enemyDistWeight,
         }
     
     def getAction(self, gameState):

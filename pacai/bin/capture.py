@@ -731,6 +731,7 @@ def runGames(layout, agents, display, length, numGames, record, numTraining,
         blueWinRate = [s < 0 for s in scores].count(True) / float(len(scores))
         logging.info('Average Score:%s', sum(scores) / float(len(scores)))
         logging.info('Scores:%s', ', '.join([str(score) for score in scores]))
+        print(redWinRate)
         logging.info('Red Win Rate: %d/%d (%.2f)' %
                 ([s > 0 for s in scores].count(True), len(scores), redWinRate))
         logging.info('Blue Win Rate: %d/%d (%.2f)' %
