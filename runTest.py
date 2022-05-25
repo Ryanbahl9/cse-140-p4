@@ -3,10 +3,11 @@ import subprocess
 
 
 values = []
-for runDist in range(0, 5):
-    for enemyDistWeight in range(-10, 5, 5):
+for runDist in range(0, 16, 2):
+    for enemyDistWeight in range(-100, 0, 10):
         print(str(runDist) + ' ' + str(enemyDistWeight))
-        out = subprocess.Popen(['python3', '-m', 'pacai.bin.capture', '--num-games', '10', '--null-graphics', '--red', 'pacai.student.myTeam', '--red-args', 'runDist=5,enemyDistWeight=-10', '-q'], 
+        args = 'runDist=' + str(runDist) + ',enemyDistWeight=' + str(enemyDistWeight)
+        out = subprocess.Popen(['python3', '-m', 'pacai.bin.capture', '--num-games', '10', '--null-graphics', '--red', 'pacai.student.myTeam', '--red-args', args, '-q'], 
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.STDOUT)
 
