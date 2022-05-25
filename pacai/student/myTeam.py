@@ -1,3 +1,5 @@
+import math
+from os import stat
 from pacai.core import distance
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.util import reflection
@@ -29,44 +31,56 @@ def createTeam(firstIndex, secondIndex, isRed,
 class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
-
-    def getFeatures(self, gameState, action):
-        features = {}
-        successor = self.getSuccessor(gameState, action)
-        features['successorScore'] = self.getScore(successor)
-
-        # Compute distance to the nearest food.
-        foodList = self.getFood(successor).asList()
-
-        # This should always be True, but better safe than sorry.
-        if (len(foodList) > 0):
-            myPos = successor.getAgentState(self.index).getPosition()
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
-
-        # compute dist to enemy
-        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
-        if (len(defenders) > 0):
-            # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
-            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in defenders]
-            minDist = min(dists)
-            if (minDist < 3):
-                features['distanceToEnemy'] = min(dists)
-            else:
-                features['distanceToEnemy'] = 0
-        
-        return features
-
-    def getWeights(self, gameState, action):
-        return {
-            'successorScore': 100,
-            'distanceToFood': -1,
-            'distanceToEnemy': -10,
-        }
     
-    def getAction(self, gameState):
-        return super().getAction(gameState)
+    def generateAllSuccessorStates(self, gameState, index):
+        legalActions = gameState.getLegalActions(index)
+        rtn = [(gameState.generateSuccessor(index, action), action) for action in legalActions]
+        for x in rtn:
+            if x[1] == 'Stop':
+                rtn.remove(x)
+        # if index != 0:
+        #     print(0)
+        return rtn
+
+    def chooseAction(self, gameState):
+        rtn = self.getActionRecur(gameState, 0, -math.inf, math.inf)[1]
+        return rtn
+
+    def getActionRecur(self, state, level, alpha, beta):
+        depth = 2
+        numAgents = state.getNumAgents()
+        agentIndex = level % numAgents
+
+        if level >= (depth * numAgents):
+            return (self.getScore(state), None)
+
+        successorStates = self.generateAllSuccessorStates(state, agentIndex)
+        tmp = self.red
+        if len(successorStates) == 0:
+            return (self.getScore(state), None)
+
+        if agentIndex in self.getOpponents(state):
+            minEval = math.inf
+            for successor in successorStates:
+                successorEval = self.getActionRecur(successor[0], level + 1, alpha, beta)[0]
+                if minEval > successorEval:
+                    minEval = successorEval
+                    minState = successor
+                beta = min(beta, minEval)
+                if beta <= alpha:
+                    break
+            return (minEval, minState[1])
+        else:
+            maxEval = -math.inf
+            for successor in successorStates:
+                successorEval = self.getActionRecur(successor[0], level + 1, alpha, beta)[0]
+                if maxEval < successorEval:
+                    maxEval = successorEval
+                    maxState = successor
+                alpha = max(alpha, maxEval)
+                if beta <= alpha:
+                    break
+            return (maxEval, maxState[1])
 
 
 class DefensiveAgent(ReflexCaptureAgent):
