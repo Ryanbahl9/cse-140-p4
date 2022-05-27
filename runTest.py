@@ -3,7 +3,7 @@ import subprocess
 
 
 values = []
-for runDist in range(0, 16, 2):
+for runDist in range(2, 16, 2):
     for enemyDistWeight in range(-100, 0, 10):
         print(str(runDist) + ' ' + str(enemyDistWeight))
         args = 'runDist=' + str(runDist) + ',enemyDistWeight=' + str(enemyDistWeight)
