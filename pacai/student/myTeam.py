@@ -1,4 +1,3 @@
-from pacai.core import distance
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.util import reflection
 # from pacai.agents.capture.offense import OffensiveReflexAgent
@@ -6,6 +5,11 @@ from pacai.util import reflection
 from pacai.agents.capture.reflex import ReflexCaptureAgent
 from pacai.core.directions import Directions
 from pacai.student.multiagents import ReflexAgent
+
+# For Q-Learning
+import random
+from pacai.util import probability
+
 
 
 def createTeam(firstIndex, secondIndex, isRed,
@@ -18,13 +22,38 @@ def createTeam(firstIndex, secondIndex, isRed,
     and will be False if the blue team is being created.
     """
 
-    firstAgent = OffensiveAgent
+    firstAgent = QLearningAgent
     secondAgent = DefensiveAgent
 
     return [
         firstAgent(firstIndex),
         secondAgent(secondIndex),
     ]
+
+class QLearningAgent(CaptureAgent):
+    def __init__(self, index, alpha = 1.0, epsilon = 0.05,
+            gamma = 0.8, numTraining = 10, **kwargs):
+        """
+        Args:
+            alpha: The learning rate.
+            epsilon: The exploration rate.
+            gamma: The discount factor.
+            numTraining: The number of training episodes.
+        """
+        super().__init__(index, **kwargs)
+
+        self.alpha = float(alpha)
+        self.epsilon = float(epsilon)
+        self.discountRate = float(gamma)
+        self.numTraining = int(numTraining)
+
+
+    # def chooseAction(self, gameState):
+    #     if probability.flipCoin(self.getEpsilon()):
+    #         return random.choice(self.getLegalActions(gameState))
+    #     return self.getPolicy(gameState)
+
+
 
 class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
