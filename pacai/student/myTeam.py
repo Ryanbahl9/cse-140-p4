@@ -23,7 +23,7 @@ def createTeam(firstIndex, secondIndex, isRed,
     and will be False if the blue team is being created.
     """
 
-    firstAgent = OffensiveAgent
+    firstAgent = QLearningAgent
     secondAgent = DefensiveAgent
 
     return [
@@ -60,6 +60,7 @@ class QLearningAgent(CaptureAgent):
         self.epsilon = float(epsilon)
         self.discountRate = float(gamma)
         self.numTraining = int(numTraining)
+        self.weights = {}
 
     def chooseAction(self, gameState):
         
@@ -92,8 +93,33 @@ class QLearningAgent(CaptureAgent):
             qVal += weight * featureValue
         return qVal
     
-    def getFeatures(self, state, action):
-        return {}
+    def getFeatures(self, gameState, action):
+        features = {}
+        successor = successor.getAgentState(self.index).getPosition()
+        features['successorScore'] = gameState.getScore(successor)
+
+        # Compute distance to the nearest food.
+        foodList = self.getFood(successor).asList()
+
+        # This should always be True, but better safe than sorry.
+        if (len(foodList) > 0):
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
+
+        # compute dist to enemy
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
+        if (len(defenders) > 0):
+            # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
+            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in defenders]
+            minDist = min(dists)
+            if (minDist < 3):
+                features['distanceToEnemy'] = min(dists)
+            else:
+                features['distanceToEnemy'] = 0
+        
+        return features
 
     # I think this function is called after the previous getAction() takes affect
     # We might want to call update() here instead of chooseAction()
@@ -102,19 +128,20 @@ class QLearningAgent(CaptureAgent):
 
     def update(self, gameState):
         lastAction = self.lastAction
-        if self.lastAction == None:
-            pass
+        if not lastAction:
+            return
         lastState = self.getPreviousObservation()
-        reward = self.getReward()
+        reward = self.getReward(gameState)
         discount = self.discountRate
         qPrimeVal = self.getValue(gameState)
         qVal = self.getQValue(lastState, lastAction)
+        
         correction = (reward + discount * qPrimeVal) - qVal
 
         features = self.getFeatures(lastState, lastAction)
         for feature in features:
-            self.weights[feature] = self.weights.get(feature, 1)\
-                + self.alpha * correction * features[feature]
+            newWeight = self.getWeight(feature) + self.alpha * correction * features[feature]
+            self.setWeight(feature, newWeight) 
 
     # Calculates the reward we got for the previous action
     def getReward(self, gameState):
@@ -135,7 +162,15 @@ class QLearningAgent(CaptureAgent):
 
         """
         # TODO: rewrite this function
-        reward = self.getCurrentObservation().getScore() - self.getPrev.getScore()
+        currentObv = self.getCurrentObservation()
+        prevObv = self.getPreviousObservation()
+        reward = currentObv.getScore() - prevObv.getScore()
+
+    def getWeight(self, feature):
+        return self.weights.get(feature, 1)
+    
+    def setWeight(self, feature, value):
+        self.weights[feature] = value
 
 
 
