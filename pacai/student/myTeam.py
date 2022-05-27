@@ -14,7 +14,8 @@ from pacai.util import probability
 
 def createTeam(firstIndex, secondIndex, isRed,
         first = 'pacai.agents.capture.dummy.DummyAgent',
-        second = 'pacai.agents.capture.dummy.DummyAgent'):
+        second = 'pacai.agents.capture.dummy.DummyAgent',
+        **kwargs):
     """
     This function should return a list of two agents that will form the capture team,
     initialized using firstIndex and secondIndex as their agent indexed.
@@ -22,15 +23,27 @@ def createTeam(firstIndex, secondIndex, isRed,
     and will be False if the blue team is being created.
     """
 
-    firstAgent = QLearningAgent
+    firstAgent = OffensiveAgent
     secondAgent = DefensiveAgent
 
     return [
-        firstAgent(firstIndex),
-        secondAgent(secondIndex),
+        firstAgent(firstIndex, **kwargs),
+        secondAgent(secondIndex, **kwargs),
     ]
 
 class QLearningAgent(CaptureAgent):
+    """
+        List of Class values:
+            self.index              : Index of current agent
+            self.red                : Whether or not you're on the red team
+            self.agentsOnTeam       : Agent objects controlling you and your teammates
+            self.distancer          : Maze distance calculator
+            self.observationHistory : A history of observations
+            self.timeForComputing   : Time to spend each turn on computing maze distances
+
+        Notes:
+            This probably could not be used for two agents 
+    """
     def __init__(self, index, alpha = 1.0, epsilon = 0.05,
             gamma = 0.8, numTraining = 10, **kwargs):
         """
@@ -42,16 +55,88 @@ class QLearningAgent(CaptureAgent):
         """
         super().__init__(index, **kwargs)
 
+        self.lastAction = None
         self.alpha = float(alpha)
         self.epsilon = float(epsilon)
         self.discountRate = float(gamma)
         self.numTraining = int(numTraining)
 
+    def chooseAction(self, gameState):
+        
+        self.update(gameState)
 
-    # def chooseAction(self, gameState):
-    #     if probability.flipCoin(self.getEpsilon()):
-    #         return random.choice(self.getLegalActions(gameState))
-    #     return self.getPolicy(gameState)
+        if probability.flipCoin(self.epsilon):
+            action = random.choice(gameState.getLegalActions(self.index))
+        else:
+            action = self.getPolicy(gameState)
+
+        self.lastAction = action
+        return action
+
+    def getPolicy(self, gameState):
+        max_action = Directions.STOP
+        max_q_val = 0
+        for action in gameState.getLegalActions(self.index):
+            qVal = self.getQValue(gameState, action)
+            if qVal > max_q_val or max_action is None:
+                max_q_val = qVal
+                max_action = action
+        return max_action
+    
+    def getQValue(self, state, action):
+        qVal = 0
+        features = self.getFeatures(state, action)
+        for feature in features:
+            featureValue = features[feature]
+            weight = self.weights.get(feature, 1)
+            qVal += weight * featureValue
+        return qVal
+    
+    def getFeatures(self, state, action):
+        return {}
+
+    # I think this function is called after the previous getAction() takes affect
+    # We might want to call update() here instead of chooseAction()
+    # def observationFunction(self, state):
+    #     return None
+
+    def update(self, gameState):
+        lastAction = self.lastAction
+        if self.lastAction == None:
+            pass
+        lastState = self.getPreviousObservation()
+        reward = self.getReward()
+        discount = self.discountRate
+        qPrimeVal = self.getValue(gameState)
+        qVal = self.getQValue(lastState, lastAction)
+        correction = (reward + discount * qPrimeVal) - qVal
+
+        features = self.getFeatures(lastState, lastAction)
+        for feature in features:
+            self.weights[feature] = self.weights.get(feature, 1)\
+                + self.alpha * correction * features[feature]
+
+    # Calculates the reward we got for the previous action
+    def getReward(self, gameState):
+        """ ----- Notes -----
+
+        This will take some thought:
+            In P3 the reward is the change in score after we took the last action.
+            
+            We can't use this approach here because the score is affected by our opponents and the 
+            other agent on our team.
+
+            Some ideas for how to calculate reward for offensive agents:
+                - Use the change in amount of food (i.e. add a reward if we eat a food) 
+                - Add reward if we eat a power up
+            
+            I'm not sure how we will calculate rewards for invaders because there is no function 
+            to tell if we ate an invader
+
+        """
+        # TODO: rewrite this function
+        reward = self.getCurrentObservation().getScore() - self.getPrev.getScore()
+
 
 
 
