@@ -151,9 +151,20 @@ class DefensiveAgent(ReflexCaptureAgent):
             features['invaderDistance'], closestInvader = min(dists)
         # when there are no invaders go the middle of the layout
         else:
-            middle = [int(gameState.getInitialLayout().width / 2.3), int(gameState.getInitialLayout().height / 2)]
+            # how to check if we are red of blue?
+            red = False
+            if gameState.getRedTeamIndices() == self.getTeam(gameState):
+                red = True
+            if red:
+                modifier = 2.3
+            else:
+                modifier = 1.7
+            middle = [int(gameState.getInitialLayout().width / modifier), int(gameState.getInitialLayout().height / 2)]
             while gameState.hasWall(middle[0], middle[1]):
-                middle[0] = middle[0] - 1
+                if red:
+                    middle[0] = middle[0] - 1
+                else:
+                    middle[0] = middle[0] + 1
             midDist = self.getMazeDistance(myPos, tuple(middle))
             features['waitMiddle'] = midDist
 
