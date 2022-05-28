@@ -40,6 +40,17 @@ class OffensiveAgent(ReflexCaptureAgent):
 
         # Computer distance to nearest capsule
         capsuleList = self.getCapsules(successor)
+        oldCapsuleList = self.getCapsules(gameState)
+
+        # Get own position 
+        myPos = successor.getAgentState(self.index).getPosition()
+
+        # Add capsule as ghost
+        foodList.extend(capsuleList)
+        
+        # reward PacMan for eating a capsule 
+        if myPos in oldCapsuleList:
+            features['eatCapsule'] = 1
 
         # This should always be True, but better safe than sorry.
         if (len(foodList) > 0):
@@ -92,7 +103,8 @@ class OffensiveAgent(ReflexCaptureAgent):
             'distanceToFood': -1,
             'distanceToEnemy': 100,
             'stop': -200,
-            'distanceToCapsule': 0
+            'distanceToCapsule': 0,
+            'eatCapsule': 100
         }
     
     def getAction(self, gameState):
