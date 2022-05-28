@@ -38,23 +38,51 @@ class OffensiveAgent(ReflexCaptureAgent):
         # Compute distance to the nearest food.
         foodList = self.getFood(successor).asList()
 
+        # Computer distance to nearest capsule
+        capsuleList = self.getCapsules(successor)
+
         # This should always be True, but better safe than sorry.
         if (len(foodList) > 0):
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
+        # if capsuleList:
+        #     myPos = successor.getAgentState(self.index).getPosition()
+        #     minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
+        #     features['distanceToCapsule'] = minDistance
+
         # compute dist to enemy
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
         if (len(defenders) > 0):
             # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
-            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in defenders]
+            dists = []
+            closestGhost = None
+            currentMin = 10000
+            for a in defenders:
+                distance = self.getMazeDistance(myPos, a.getPosition())
+                dists.append(distance)
+                # get the ghost object that is closest to Pacman
+                if distance < currentMin:
+                    currentMin = distance
+                    closestGhost = a
+            distanceToEnemy = 10
             minDist = min(dists)
-            if (minDist < 3):
-                features['distanceToEnemy'] = min(dists)
-            else:
-                features['distanceToEnemy'] = 0
+            # if ghost is within 5 distance of pacman
+            if dists and minDist < 5 and successor.getAgentState(self.index).isPacman():
+                distanceToEnemy = minDist
+
+            # if ghosts are scared then go towards them
+            # THIS IS NOT WORKING PACMAN STILL RUNS AWAY FROM SCARED GHOSTS and doesnt eat capsules
+            # if closestGhost.getScaredTimer() != 0:
+            #     distanceToEnemy *= -1
+
+            features['distanceToEnemy'] = distanceToEnemy
+
+        # Discourage stopping
+        if (action == Directions.STOP):
+            features['stop'] = 1
         
         return features
 
@@ -62,7 +90,9 @@ class OffensiveAgent(ReflexCaptureAgent):
         return {
             'successorScore': 100,
             'distanceToFood': -1,
-            'distanceToEnemy': -10,
+            'distanceToEnemy': 100,
+            'stop': -200,
+            'distanceToCapsule': 0
         }
     
     def getAction(self, gameState):
@@ -72,10 +102,11 @@ class OffensiveAgent(ReflexCaptureAgent):
 class DefensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
+    
 
     def getFeatures(self, gameState, action):
         features = {}
-
+        
         successor = self.getSuccessor(gameState, action)
         myState = successor.getAgentState(self.index)
         myPos = myState.getPosition()
@@ -94,6 +125,13 @@ class DefensiveAgent(ReflexCaptureAgent):
         if (len(invaders) > 0):
             dists = [(self.getMazeDistance(myPos, a.getPosition()), a) for a in invaders]
             features['invaderDistance'], closestInvader = min(dists)
+        # when there are no invaders go the middle of the layout
+        else:
+            middle = [int(gameState.getInitialLayout().width / 2.3), int(gameState.getInitialLayout().height / 2)]
+            while gameState.hasWall(middle[0], middle[1]):
+                middle[0] = middle[0] - 1
+            middist = self.getMazeDistance(myPos, tuple(middle))
+            features['waitmiddle'] = middist
 
         if (action == Directions.STOP):
             features['stop'] = 1
@@ -124,7 +162,8 @@ class DefensiveAgent(ReflexCaptureAgent):
             'invaderDistance': -10,
             'stop': -100,
             'reverse': -2,
-            'invaderFoodDistance': 0
+            'invaderFoodDistance': 0,
+            'waitmiddle': -100
         }
     def getAction(self, gameState):
         return super().getAction(gameState)
