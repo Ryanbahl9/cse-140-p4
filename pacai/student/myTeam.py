@@ -93,13 +93,13 @@ class OffensiveAgent(ReflexCaptureAgent):
             distanceToEnemy = 10
             minDist = min(dists)
             # if ghost is within 5 distance of pacman
-            if dists and minDist < 3 and successor.getAgentState(self.index).isPacman():
+            if dists and minDist < 5 and successor.getAgentState(self.index).isPacman():
                 distanceToEnemy = minDist
 
             # if ghosts are scared then go towards them
             # THIS IS NOT WORKING PACMAN STILL RUNS AWAY FROM SCARED GHOSTS and doesnt eat capsules
-            if closestGhost.isScared() != 0:
-                distanceToEnemy *= 1
+            if closestGhost.isScared():
+                distanceToEnemy *= -.1
 
             features['distanceToEnemy'] = distanceToEnemy
 
@@ -113,7 +113,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         return {
             'successorScore': 100,
             'distanceToFood': -1,
-            'distanceToEnemy': -100,
+            'distanceToEnemy': 100,
             'stop': -200,
             'distanceToCapsule': 0,
             'eatCapsule': 100
@@ -154,8 +154,8 @@ class DefensiveAgent(ReflexCaptureAgent):
             middle = [int(gameState.getInitialLayout().width / 2.3), int(gameState.getInitialLayout().height / 2)]
             while gameState.hasWall(middle[0], middle[1]):
                 middle[0] = middle[0] - 1
-            middist = self.getMazeDistance(myPos, tuple(middle))
-            features['waitmiddle'] = middist
+            midDist = self.getMazeDistance(myPos, tuple(middle))
+            features['waitMiddle'] = midDist
 
         if (action == Directions.STOP):
             features['stop'] = 1
@@ -187,7 +187,7 @@ class DefensiveAgent(ReflexCaptureAgent):
             'stop': -100,
             'reverse': -2,
             'invaderFoodDistance': 0,
-            'waitmiddle': -100
+            'waitMiddle': -100
         }
     def getAction(self, gameState):
         return super().getAction(gameState)
