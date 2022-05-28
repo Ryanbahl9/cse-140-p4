@@ -40,7 +40,7 @@ class OffensiveAgent(ReflexCaptureAgent):
 
         # Computer distance to nearest capsule
         capsuleList = self.getCapsules(successor)
-
+        foodList.extend(capsuleList)
         # This should always be True, but better safe than sorry.
         if (len(foodList) > 0):
             myPos = successor.getAgentState(self.index).getPosition()
@@ -51,6 +51,18 @@ class OffensiveAgent(ReflexCaptureAgent):
         #     myPos = successor.getAgentState(self.index).getPosition()
         #     minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
         #     features['distanceToCapsule'] = minDistance
+
+        # if (len(foodList) > 0):
+        #     if capsuleList:
+        #         myPos = successor.getAgentState(self.index).getPosition()
+        #         minDistance_f = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
+        #         minDistance_c = min([self.getMazeDistance(myPos, food) for food in foodList])
+        #         if minDistance_f > minDistance_c:
+        #             features['distanceToFood'] = minDistance_f
+        #             features['distanceToCapsule'] = -1000000
+        #         else:
+        #             features['distanceToFood'] = -100000000000
+        #             features['distanceToCapsule'] = minDistance_c
 
         # compute dist to enemy
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
@@ -70,13 +82,13 @@ class OffensiveAgent(ReflexCaptureAgent):
             distanceToEnemy = 10
             minDist = min(dists)
             # if ghost is within 5 distance of pacman
-            if dists and minDist < 5 and successor.getAgentState(self.index).isPacman():
+            if dists and minDist < 3 and successor.getAgentState(self.index).isPacman():
                 distanceToEnemy = minDist
 
             # if ghosts are scared then go towards them
             # THIS IS NOT WORKING PACMAN STILL RUNS AWAY FROM SCARED GHOSTS and doesnt eat capsules
-            # if closestGhost.getScaredTimer() != 0:
-            #     distanceToEnemy *= -1
+            if closestGhost.isScared() != 0:
+                distanceToEnemy *= 1
 
             features['distanceToEnemy'] = distanceToEnemy
 
@@ -90,7 +102,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         return {
             'successorScore': 100,
             'distanceToFood': -1,
-            'distanceToEnemy': 100,
+            'distanceToEnemy': -100,
             'stop': -200,
             'distanceToCapsule': 0
         }
