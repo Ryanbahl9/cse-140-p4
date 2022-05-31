@@ -41,19 +41,23 @@ class OffensiveAgent(ReflexCaptureAgent):
         # Compute distance to the nearest food.
         foodList = self.getFood(successor).asList()
 
-        # Computer distance to nearest capsule
+        # Compute distance to nearest capsule
         capsuleList = self.getCapsules(successor)
         oldCapsuleList = self.getCapsules(gameState)
 
         # Get own position 
         myPos = successor.getAgentState(self.index).getPosition()
 
-        # Add capsule as ghost
+        # Add capsule as food
         foodList.extend(capsuleList)
-        
-        # reward PacMan for eating a capsule 
-        if myPos in oldCapsuleList:
-            features['eatCapsule'] = 1
+
+        # reward PacMan for getting close to and eating a capsule
+        if oldCapsuleList:
+            minDist = min([self.getMazeDistance(myPos, capsule) for capsule in oldCapsuleList])
+            features['eatCapsule'] = minDist
+
+        if len(capsuleList) < len(oldCapsuleList):
+            features['ateCapsule'] = 10
 
         # This should always be True, but better safe than sorry.
         if (len(foodList) > 0):
@@ -102,7 +106,7 @@ class OffensiveAgent(ReflexCaptureAgent):
             # if ghosts are scared then go towards them
             # THIS IS NOT WORKING PACMAN STILL RUNS AWAY FROM SCARED GHOSTS and doesnt eat capsules
             if closestGhost.isScared():
-                distanceToEnemy *= -.1
+                distanceToEnemy *= -.0
 
             features['distanceToEnemy'] = distanceToEnemy
 
@@ -119,7 +123,8 @@ class OffensiveAgent(ReflexCaptureAgent):
             'distanceToEnemy': 100,
             'stop': -200,
             'distanceToCapsule': 0,
-            'eatCapsule': 100
+            'eatCapsule': -2,
+            'ateCapsule': 100
         }
     
     def getAction(self, gameState):
@@ -154,10 +159,7 @@ class DefensiveAgent(ReflexCaptureAgent):
             features['invaderDistance'], closestInvader = min(dists)
         # when there are no invaders go the middle of the layout
         else:
-            # how to check if we are red of blue?
-            red = False
-            if gameState.getRedTeamIndices() == self.getTeam(gameState):
-                red = True
+            red = gameState.getRedTeamIndices() == self.getTeam(gameState)
             if red:
                 modifier = 2.3
             else:
