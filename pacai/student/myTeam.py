@@ -1,4 +1,3 @@
-import random
 from pacai.core import distance
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.util import reflection
@@ -7,13 +6,15 @@ from pacai.util import reflection
 from pacai.agents.capture.reflex import ReflexCaptureAgent
 from pacai.core.directions import Directions
 from pacai.student.multiagents import ReflexAgent
-from pacai.util import probability
 
+# For Q-Learning
+import random
+from pacai.util import probability
 
 
 def createTeam(firstIndex, secondIndex, isRed,
         first = 'pacai.agents.capture.dummy.DummyAgent',
-        second = 'pacai.agents.capture.dummy.DummyAgent'):
+        second = 'pacai.agents.capture.dummy.DummyAgent', **kwargs):
     """
     This function should return a list of two agents that will form the capture team,
     initialized using firstIndex and secondIndex as their agent indexed.
@@ -25,8 +26,8 @@ def createTeam(firstIndex, secondIndex, isRed,
     secondAgent = DefensiveAgent
 
     return [
-        firstAgent(firstIndex),
-        secondAgent(secondIndex),
+        firstAgent(firstIndex, **kwargs),
+        secondAgent(secondIndex, **kwargs),
     ]
 
 class OffensiveAgent(ReflexCaptureAgent):
@@ -207,9 +208,6 @@ class DefensiveAgent(ReflexCaptureAgent):
         }
     def getAction(self, gameState):
         return super().getAction(gameState)
-
-    
-
 
 class GeneralAgent(CaptureAgent):
     def __init__(self, index, **kwargs):
@@ -409,19 +407,7 @@ class QLearningAgent(CaptureAgent):
         reward = currentObv.getScore() - prevObv.getScore()
 
     def getWeight(self, feature):
-        if feature in self.weights:
-            return self.weights.get(feature)
-        initialWeights = {
-            'successorScore': 100,
-            'distanceToFood': -1,
-            'distanceToEnemy': 100,
-            'stop': -200,
-            'distanceToCapsule': 0,
-            'eatCapsule': -2,
-            'ateCapsule': 100
-        }
-        return initialWeights.get(feature, 1)
-
+        return self.weights.get(feature, 1)
+    
     def setWeight(self, feature, value):
         self.weights[feature] = value
-
