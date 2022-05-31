@@ -10,6 +10,8 @@ from pacai.student.multiagents import ReflexAgent
 # For Q-Learning
 import random
 from pacai.util import probability
+from pacai.util import util
+
 
 
 def createTeam(firstIndex, secondIndex, isRed,
@@ -229,8 +231,8 @@ class QLearningAgent(CaptureAgent):
         Notes:
             This probably could not be used for two agents 
     """
-    def __init__(self, index, alpha = 1.0, epsilon = 0.05,
-            gamma = 0.8, numTraining = 10, **kwargs):
+    def __init__(self, index, alpha = 0.005, epsilon = 0.05,
+            gamma = 1, numTraining = 10, **kwargs):
         """
         Args:
             alpha: The learning rate.
@@ -380,7 +382,8 @@ class QLearningAgent(CaptureAgent):
 
         features = self.getFeatures(lastState, lastAction)
         for feature in features:
-            newWeight = self.getWeight(feature) + self.alpha * correction * features[feature]
+            oldWeight = self.getWeight(feature)
+            newWeight = oldWeight + self.alpha * correction * features[feature]
             self.setWeight(feature, newWeight) 
 
     # Calculates the reward we got for the previous action
@@ -402,12 +405,50 @@ class QLearningAgent(CaptureAgent):
 
         """
         # TODO: rewrite this function
-        currentObv = self.getCurrentObservation()
+        
         prevObv = self.getPreviousObservation()
-        reward = currentObv.getScore() - prevObv.getScore()
+        reward = len(self.getFood(prevObv).asList()) - len(self.getFood(gameState).asList()) + len(self.getCapsules(prevObv)) - len(self.getCapsules(gameState))
+        if reward > 0:
+            print('reward: ' + str(reward))
+        return reward
 
     def getWeight(self, feature):
-        return self.weights.get(feature, 1)
+        if feature in self.weights:
+            self.weights.get(feature, 1)
+        initialWeights = {
+            'successorScore': 100,
+            'distanceToFood': -1,
+            'distanceToEnemy': 100,
+            'stop': -200,
+            'distanceToCapsule': 0,
+            'eatCapsule': -2,
+            'ateCapsule': 100
+        }
+        return initialWeights.get(feature, 1)
     
     def setWeight(self, feature, value):
+        if feature in self.weights and self.weights.get(feature, 0) != value:
+            print(str(feature) + ': ' + str(self.weights[feature]))
         self.weights[feature] = value
+
+    def getSuccessor(self, gameState, action):
+        """
+        Finds the next successor which is a grid position (location tuple).
+        """
+
+        successor = gameState.generateSuccessor(self.index, action)
+        pos = successor.getAgentState(self.index).getPosition()
+
+        if (pos != util.nearestPoint(pos)):
+            # Only half a grid position was covered.
+            return successor.generateSuccessor(self.index, action)
+        else:
+            return successor
+    def getValue(self, gameState):
+        actions = []
+        for legalAction in gameState.getLegalActions(self.index):
+            actions.append(self.getQValue(gameState, legalAction))
+        if actions:
+            return max(actions)
+        else:
+            return 0.0
