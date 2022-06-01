@@ -54,16 +54,13 @@ class OffensiveAgent(ReflexCaptureAgent):
         # Get own position 
         myPos = successor.getAgentState(self.index).getPosition()
 
-        # Add capsule as food
-        foodList.extend(capsuleList)
+        # # Add capsule as food
+        # foodList.extend(capsuleList)
 
         # reward PacMan for getting close to and eating a capsule
         if oldCapsuleList:
             minDist = min([self.getMazeDistance(myPos, capsule) for capsule in oldCapsuleList])
-            features['eatCapsule'] = minDist
-
-        if len(capsuleList) < len(oldCapsuleList):
-            features['ateCapsule'] = 10
+            features['eatCapsule'] = 1/(minDist + 0.1)
 
         # if capsuleList:
         #     myPos = successor.getAgentState(self.index).getPosition()
@@ -103,9 +100,9 @@ class OffensiveAgent(ReflexCaptureAgent):
                 # calculate the dist from the current food to our position
                 foodDist = self.getMazeDistance(myPos, food)
                 # if the enemy is closer to the food than we are, devalue it
-                if distToClosestEnemy > 3:
+                if distToClosestEnemy > 2 or len(foodList) <= 2:
                     foodDists.append(foodDist)
-            minDistance = min(foodDists)
+            minDistance = min(foodDists, default=0)
             features['distanceToFood'] = 1/(minDistance + 0.1)
 
         defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
@@ -152,7 +149,7 @@ class OffensiveAgent(ReflexCaptureAgent):
             'distanceToEnemy': 100,
             'stop': -200,
             'distanceToCapsule': 0,
-            'eatCapsule': -2,
+            'eatCapsule': 1,
             'ateCapsule': 100,
             'staleMate': -1
         }
