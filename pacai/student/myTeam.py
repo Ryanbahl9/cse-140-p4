@@ -61,6 +61,9 @@ class OffensiveAgent(ReflexCaptureAgent):
         if oldCapsuleList:
             minDist = min([self.getMazeDistance(myPos, capsule) for capsule in oldCapsuleList])
             features['eatCapsule'] = 1/(minDist + 0.1)
+        
+        if len(capsuleList) < len(oldCapsuleList):
+            features['ateCapsule'] = 10
 
         # if capsuleList:
         #     myPos = successor.getAgentState(self.index).getPosition()
