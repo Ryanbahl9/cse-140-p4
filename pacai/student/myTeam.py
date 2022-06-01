@@ -38,7 +38,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         super().__init__(index)
         self.stalemateCounter = 0
         self.stalemateDistance = 3
-
+        self.lastAction=None
     def getFeatures(self, gameState, action):
         features = {}
         successor = self.getSuccessor(gameState, action)
@@ -142,7 +142,7 @@ class OffensiveAgent(ReflexCaptureAgent):
     def getWeights(self, gameState, action):
         return {
             'successorScore': 100,
-            'distanceToFood': -1,
+            'distanceToFood': 1,
             'distanceToEnemy': 100,
             'stop': -200,
             'distanceToCapsule': 0,
@@ -171,7 +171,15 @@ class OffensiveAgent(ReflexCaptureAgent):
 
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        ##################################################
+        ##################################################
+        ##################################################
 
+        # if self.lastAction in bestActions:
+        #     bestActions.remove(self.lastAction)
+        # nextAction =random.choice(bestActions)
+        # self.lastAction = nextAction
+        # return nextAction
         return random.choice(bestActions)
     
     def getDistToMiddle(self, gameState):
@@ -273,16 +281,7 @@ class DefensiveAgent(ReflexCaptureAgent):
                 'runWhileScared': 100,
             }
         else:
-            return {
-                'successorScore': 100,
-                'distanceToFood': -1,
-                'distanceToEnemy': 100,
-                'stop': -200,
-                'distanceToCapsule': 0,
-                'eatCapsule': -2,
-                'ateCapsule': 100,
-                'staleMate': -1
-            }
+            return OffensiveAgent.getWeights(self, gameState, action)
     def getAction(self, gameState):
         return super().getAction(gameState)
 
