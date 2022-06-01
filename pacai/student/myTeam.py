@@ -37,7 +37,7 @@ class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
         self.stalemateCounter = 0
-        self.stalemateDistance = 1
+        self.stalemateDistance = 2
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -178,79 +178,98 @@ class DefensiveAgent(ReflexCaptureAgent):
         
         successor = self.getSuccessor(gameState, action)
         myState = successor.getAgentState(self.index)
-        myPos = myState.getPosition()
+        if not myState.isScared():
+            myPos = myState.getPosition()
 
-        # Computes whether we're on defense (1) or offense (0).
-        features['onDefense'] = 1
-        if (myState.isPacman()):
-            features['onDefense'] = 0
+            # Computes whether we're on defense (1) or offense (0).
+            features['onDefense'] = 1
+            if (myState.isPacman()):
+                features['onDefense'] = 0
 
-        # Computes distance to invaders we can see.
-        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        invaders = [a for a in enemies if a.isPacman() and a.getPosition() is not None]
-        features['numInvaders'] = len(invaders)
-        
-        
-        if (len(invaders) > 0):
-            dists = [(self.getMazeDistance(myPos, a.getPosition()), a) for a in invaders]
-            features['invaderDistance'], closestInvader = min(dists)
-        # when there are no invaders go the middle of the layout
-        else:
-            red = gameState.getRedTeamIndices() == self.getTeam(gameState)
-            if red:
-                modifier = 2.3
+            # Computes distance to invaders we can see.
+            enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+            invaders = [a for a in enemies if a.isPacman() and a.getPosition() is not None]
+            features['numInvaders'] = len(invaders)
+            
+            
+            if (len(invaders) > 0):
+                dists = [(self.getMazeDistance(myPos, a.getPosition()), a) for a in invaders]
+                features['invaderDistance'], closestInvader = min(dists)
+            # when there are no invaders go the middle of the layout
             else:
-                modifier = 1.7
-            middle = [int(gameState.getInitialLayout().width / modifier), int(gameState.getInitialLayout().height / 2)]
-            while gameState.hasWall(middle[0], middle[1]):
+                red = gameState.getRedTeamIndices() == self.getTeam(gameState)
                 if red:
-                    middle[0] = middle[0] - 1
+                    modifier = 2.3
                 else:
-                    middle[0] = middle[0] + 1
-            midDist = self.getMazeDistance(myPos, tuple(middle))
-            features['waitMiddle'] = midDist
+                    modifier = 1.7
+                middle = [int(gameState.getInitialLayout().width / modifier), int(gameState.getInitialLayout().height / 2)]
+                while gameState.hasWall(middle[0], middle[1]):
+                    if red:
+                        middle[0] = middle[0] - 1
+                    else:
+                        middle[0] = middle[0] + 1
+                midDist = self.getMazeDistance(myPos, tuple(middle))
+                features['waitMiddle'] = midDist
 
-        if (action == Directions.STOP):
-            features['stop'] = 1
+            if (action == Directions.STOP):
+                features['stop'] = 1
 
-        rev = Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
-        if (action == rev):
-            features['reverse'] = 1
-        
-        # calculates invaderFoodDistance which is the distance to the 
-        # food closest to the closest invader 
-        if (len(invaders) > 0):
-            foodList = self.getFoodYouAreDefending(successor).asList()
+            rev = Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
+            if (action == rev):
+                features['reverse'] = 1
+            
+            # calculates invaderFoodDistance which is the distance to the 
+            # food closest to the closest invader 
+            if (len(invaders) > 0):
+                foodList = self.getFoodYouAreDefending(successor).asList()
 
-            # This should always be True, but better safe than sorry.
-            if (len(foodList) > 0):
-                myPos = successor.getAgentState(self.index).getPosition()
-                invaderPos = closestInvader.getPosition()
-                closestFood = min([(self.getMazeDistance(invaderPos, food), food) for food in foodList])
-                # print(self.getMazeDistance(myPos, closestFood[1]))
-                features['invaderFoodDistance'] = self.getMazeDistance(myPos, closestFood[1])
+                # This should always be True, but better safe than sorry.
+                if (len(foodList) > 0):
+                    myPos = successor.getAgentState(self.index).getPosition()
+                    invaderPos = closestInvader.getPosition()
+                    closestFood = min([(self.getMazeDistance(invaderPos, food), food) for food in foodList])
+                    # print(self.getMazeDistance(myPos, closestFood[1]))
+                    features['invaderFoodDistance'] = self.getMazeDistance(myPos, closestFood[1])
 
-        # supposedly makes the scared defender run from enemy pacman
-        #NOT WELL TESTED
-        features['runWhileScared'] = 0
-        if myState.isScared():
-            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-            invaderDist = min(dists)
-            features['runWhileScared'] = invaderDist
+            # supposedly makes the scared defender run from enemy pacman
+            #NOT WELL TESTED
+            features['runWhileScared'] = 0
+            if myState.isScared():
+                dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+                invaderDist = min(dists)
+                features['runWhileScared'] = invaderDist
 
-        return features
+            
+        else:
+            features=OffensiveAgent.getFeatures(gameState, action)
+        return features 
 
     def getWeights(self, gameState, action):
-        return {
-            'numInvaders': -1000,
-            'onDefense': 100,
-            'invaderDistance': -10,
-            'stop': -100,
-            'reverse': -2,
-            'invaderFoodDistance': 0,
-            'waitMiddle': -100,
-            'runWhileScared': 100,
-        }
+        
+        successor = self.getSuccessor(gameState, action)
+        myState = successor.getAgentState(self.index)
+        if not myState.isScared():
+            return {
+                'numInvaders': -1000,
+                'onDefense': 100,
+                'invaderDistance': -10,
+                'stop': -100,
+                'reverse': -2,
+                'invaderFoodDistance': 0,
+                'waitMiddle': -100,
+                'runWhileScared': 100,
+            }
+        else:
+            return {
+                'successorScore': 100,
+                'distanceToFood': -1,
+                'distanceToEnemy': 100,
+                'stop': -200,
+                'distanceToCapsule': 0,
+                'eatCapsule': -2,
+                'ateCapsule': 100,
+                'staleMate': -1
+            }
     def getAction(self, gameState):
         return super().getAction(gameState)
 
