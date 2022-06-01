@@ -37,7 +37,7 @@ class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
         self.stalemateCounter = 0
-        self.stalemateDistance = 2
+        self.stalemateDistance = 3
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -171,7 +171,8 @@ class OffensiveAgent(ReflexCaptureAgent):
 class DefensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
-    
+        self.stalemateCounter = 0
+        self.stalemateDistance = 3
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -240,8 +241,8 @@ class DefensiveAgent(ReflexCaptureAgent):
                 features['runWhileScared'] = invaderDist
 
             
-        else:
-            features=OffensiveAgent.getFeatures(gameState, action)
+        else: # if agent is scared
+            features=OffensiveAgent.getFeatures(self,gameState, action)
         return features 
 
     def getWeights(self, gameState, action):
