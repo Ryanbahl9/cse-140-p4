@@ -8,11 +8,11 @@ from pacai.agents.capture.reflex import ReflexCaptureAgent
 from pacai.core.directions import Directions
 from pacai.student.multiagents import ReflexAgent
 
-# For Q-Learning
+import logging
 import random
+import time
 from pacai.util import probability
 from pacai.util import util
-
 
 
 def createTeam(firstIndex, secondIndex, isRed,
@@ -36,6 +36,8 @@ def createTeam(firstIndex, secondIndex, isRed,
 class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
+        self.stalemateCounter = 0
+        self.stalemateDistance = 5
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -117,7 +119,11 @@ class OffensiveAgent(ReflexCaptureAgent):
         # Discourage stopping
         if (action == Directions.STOP):
             features['stop'] = 1
-        
+
+        if self.stalemateCounter >= 15 and self.getDistToMiddle(successor) <= self.stalemateDistance:
+            features['staleMate'] = self.stalemateCounter
+        else:
+            features['staleMate'] = 0
         return features
 
     def getWeights(self, gameState, action):
@@ -128,11 +134,37 @@ class OffensiveAgent(ReflexCaptureAgent):
             'stop': -200,
             'distanceToCapsule': 0,
             'eatCapsule': -2,
-            'ateCapsule': 100
+            'ateCapsule': 100,
+            'staleMate': -1
         }
     
-    def getAction(self, gameState):
-        return super().getAction(gameState)
+    def chooseAction(self, gameState):
+        """
+        Picks among the actions with the highest return from `ReflexCaptureAgent.evaluate`.
+        """
+
+        actions = gameState.getLegalActions(self.index)
+
+        # increment stalemate counter
+        
+        if self.getDistToMiddle(gameState) <= self.stalemateDistance:
+            self.stalemateCounter = self.stalemateCounter + 1
+        else:
+            self.stalemateCounter = 0
+
+        start = time.time()
+        values = [self.evaluate(gameState, a) for a in actions]
+        logging.debug('evaluate() time for agent %d: %.4f' % (self.index, time.time() - start))
+
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+
+        return random.choice(bestActions)
+    
+    def getDistToMiddle(self, gameState):
+        myPos = gameState.getAgentState(self.index).getPosition()
+        middle = int(gameState.getInitialLayout().width / 2)
+        return abs(myPos[0] - middle)
 
 
 class DefensiveAgent(ReflexCaptureAgent):
@@ -219,13 +251,13 @@ class GeneralAgent(CaptureAgent):
     def chooseAction(self, gameState):  
         return None  
 
-class QLearningAgent(CaptureAgent):
+class OffensiveQLearningAgent(OffensiveAgent):
     """
         List of Class values:
             self.index              : Index of current agent
             self.red                : Whether or not you're on the red team
             self.agentsOnTeam       : Agent objects controlling you and your teammates
-            self.distancer          : Maze distance calculator
+            self.distance           : Maze distance calculator
             self.observationHistory : A history of observations
             self.timeForComputing   : Time to spend each turn on computing maze distances
 
@@ -280,94 +312,6 @@ class QLearningAgent(CaptureAgent):
             weight = self.weights.get(feature, 1)
             qVal += weight * featureValue
         return qVal
-    
-    def getFeatures(self, gameState, action):
-        features = {}
-        successor = self.getSuccessor(gameState, action)
-        features['successorScore'] = self.getScore(successor)
-
-        # Compute distance to the nearest food.
-        foodList = self.getFood(successor).asList()
-
-        # Compute distance to nearest capsule
-        capsuleList = self.getCapsules(successor)
-        oldCapsuleList = self.getCapsules(gameState)
-
-        # Get own position 
-        myPos = successor.getAgentState(self.index).getPosition()
-
-        # Add capsule as food
-        foodList.extend(capsuleList)
-
-        # reward PacMan for getting close to and eating a capsule
-        if oldCapsuleList:
-            minDist = min([self.getMazeDistance(myPos, capsule) for capsule in oldCapsuleList])
-            features['eatCapsule'] = minDist
-
-        if len(capsuleList) < len(oldCapsuleList):
-            features['ateCapsule'] = 10
-
-        # This should always be True, but better safe than sorry.
-        if (len(foodList) > 0):
-            myPos = successor.getAgentState(self.index).getPosition()
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
-
-        # if capsuleList:
-        #     myPos = successor.getAgentState(self.index).getPosition()
-        #     minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
-        #     features['distanceToCapsule'] = minDistance
-
-        # if (len(foodList) > 0):
-        #     if capsuleList:
-        #         myPos = successor.getAgentState(self.index).getPosition()
-        #         minDistance_f = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
-        #         minDistance_c = min([self.getMazeDistance(myPos, food) for food in foodList])
-        #         if minDistance_f > minDistance_c:
-        #             features['distanceToFood'] = minDistance_f
-        #             features['distanceToCapsule'] = -1000000
-        #         else:
-        #             features['distanceToFood'] = -100000000000
-        #             features['distanceToCapsule'] = minDistance_c
-
-        # compute dist to enemy
-        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
-        if (len(defenders) > 0):
-            # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
-            dists = []
-            closestGhost = None
-            currentMin = 10000
-            for a in defenders:
-                distance = self.getMazeDistance(myPos, a.getPosition())
-                dists.append(distance)
-                # get the ghost object that is closest to Pacman
-                if distance < currentMin:
-                    currentMin = distance
-                    closestGhost = a
-            distanceToEnemy = 10
-            minDist = min(dists)
-            # if ghost is within 5 distance of pacman
-            if dists and minDist < 5 and successor.getAgentState(self.index).isPacman():
-                distanceToEnemy = minDist
-
-            # if ghosts are scared then go towards them
-            # THIS IS NOT WORKING PACMAN STILL RUNS AWAY FROM SCARED GHOSTS and doesnt eat capsules
-            if closestGhost.isScared():
-                distanceToEnemy *= -.0
-
-            features['distanceToEnemy'] = distanceToEnemy
-
-        # Discourage stopping
-        if (action == Directions.STOP):
-            features['stop'] = 1
-        
-        return features
-
-    # I think this function is called after the previous getAction() takes affect
-    # We might want to call update() here instead of chooseAction()
-    # def observationFunction(self, state):
-    #     return None
 
     def update(self, gameState):
         lastAction = self.lastAction
@@ -454,7 +398,7 @@ class QLearningAgent(CaptureAgent):
         else:
             return 0.0
 
-class MiniMaxAgent(OffensiveAgent):
+class OffensiveMiniMaxAgent(OffensiveAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
         
@@ -470,12 +414,47 @@ class MiniMaxAgent(OffensiveAgent):
 
     def chooseAction(self, gameState):
         listOfAgents = []
-        listOfAgents.extend(range(gameState.getNumAgents()))
-        listOfAgents = [listOfAgents.pop(listOfAgents.index(self.index))] + listOfAgents
-        rtn = self.getActionRecur(gameState, 0, -math.inf, math.inf, listOfAgents)[1]
+        listOfAgents.append(self.index)
+        listOfAgents.extend(self.getOpponents(gameState))
+        # listOfAgents = [listOfAgents.pop(listOfAgents.index(self.index))] + listOfAgents
+
+        rtn = self.getActionRecur(gameState, 0, listOfAgents)[1]
         return rtn
 
-    def getActionRecur(self, state, level, alpha, beta, listOfAgents):
+    def getActionRecur(self, state, level, listOfAgents):
+        depth = 1
+        numAgents = len(listOfAgents)
+        agentIndex = listOfAgents[level % numAgents]
+
+        # Return if depth reached 
+        if level >= (depth * numAgents):
+            return (self.getValue(state), None)
+
+        successorStates = self.generateAllSuccessorStates(state, agentIndex)
+
+        # Return if action reached
+        if len(successorStates) == 0:
+            return (self.getValue(state), None)
+            
+        if agentIndex in self.getOpponents(state):
+            minEval = math.inf
+            for successor in successorStates:
+                successorEval = self.getActionRecur(successor[0], level + 1, listOfAgents)[0]
+                if minEval > successorEval:
+                    minEval = successorEval
+                    minAction = successor[1]
+            return (minEval, minAction)
+        else:
+            maxEval = -math.inf
+            for successor in successorStates:
+                successorEval = self.getActionRecur(successor[0], level + 1, listOfAgents)[0]
+                if maxEval < successorEval:
+                    maxEval = successorEval
+                    maxAction = successor[1]
+            return (maxEval, maxAction)
+
+    """ This is an implementation of alpha beta pruning
+    def getActionRecurAB(self, state, level, alpha, beta, listOfAgents):
         depth = 1
         numAgents = state.getNumAgents()
         agentIndex = listOfAgents[level % numAgents]
@@ -490,7 +469,7 @@ class MiniMaxAgent(OffensiveAgent):
         if agentIndex in self.getOpponents(state):
             minEval = math.inf
             for successor in successorStates:
-                successorEval = self.getActionRecur(successor[0], level + 1, alpha, beta, listOfAgents)[0]
+                successorEval = self.getActionRecurAB(successor[0], level + 1, alpha, beta, listOfAgents)[0]
                 if minEval > successorEval:
                     minEval = successorEval
                     minState = successor
@@ -501,7 +480,7 @@ class MiniMaxAgent(OffensiveAgent):
         else:
             maxEval = -math.inf
             for successor in successorStates:
-                successorEval = self.getActionRecur(successor[0], level + 1, alpha, beta, listOfAgents)[0]
+                successorEval = self.getActionRecurAB(successor[0], level + 1, alpha, beta, listOfAgents)[0]
                 if maxEval < successorEval:
                     maxEval = successorEval
                     maxState = successor
@@ -512,10 +491,12 @@ class MiniMaxAgent(OffensiveAgent):
                 if beta <= alpha:
                     break
             return (maxEval, maxState[1])
+    """
 
     def getValue(self, gameState):
         actions = []
-        for legalAction in gameState.getLegalActions(self.index):
+        legalActions = gameState.getLegalActions(self.index)
+        for legalAction in legalActions:
             actions.append(self.evaluate(gameState, legalAction))
         if actions:
             return max(actions)
