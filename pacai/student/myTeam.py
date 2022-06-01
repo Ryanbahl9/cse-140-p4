@@ -1,3 +1,4 @@
+import math
 from pacai.core import distance
 from pacai.agents.capture.capture import CaptureAgent
 from pacai.util import reflection
@@ -452,3 +453,78 @@ class QLearningAgent(CaptureAgent):
             return max(actions)
         else:
             return 0.0
+
+class MiniMaxAgent(OffensiveAgent):
+    def __init__(self, index, **kwargs):
+        super().__init__(index)
+        
+        self.weights = {}
+    
+    def generateAllSuccessorStates(self, gameState, index):
+        legalActions = gameState.getLegalActions(index)
+        rtn = [(gameState.generateSuccessor(index, action), action) for action in legalActions]
+        for x in rtn:
+            if x[1] == 'Stop':
+                rtn.remove(x)
+        return rtn
+
+    def chooseAction(self, gameState):
+        listOfAgents = []
+        listOfAgents.extend(range(gameState.getNumAgents()))
+        listOfAgents = [listOfAgents.pop(listOfAgents.index(self.index))] + listOfAgents
+        rtn = self.getActionRecur(gameState, 0, -math.inf, math.inf, listOfAgents)[1]
+        return rtn
+
+    def getActionRecur(self, state, level, alpha, beta, listOfAgents):
+        depth = 1
+        numAgents = state.getNumAgents()
+        agentIndex = listOfAgents[level % numAgents]
+
+        if level >= (depth * numAgents):
+            return (self.getValue(state), None)
+
+        successorStates = self.generateAllSuccessorStates(state, agentIndex)
+        if len(successorStates) == 0:
+            return (self.getValue(state), None)
+
+        if agentIndex in self.getOpponents(state):
+            minEval = math.inf
+            for successor in successorStates:
+                successorEval = self.getActionRecur(successor[0], level + 1, alpha, beta, listOfAgents)[0]
+                if minEval > successorEval:
+                    minEval = successorEval
+                    minState = successor
+                beta = min(beta, minEval)
+                if beta <= alpha:
+                    break
+            return (minEval, minState[1])
+        else:
+            maxEval = -math.inf
+            for successor in successorStates:
+                successorEval = self.getActionRecur(successor[0], level + 1, alpha, beta, listOfAgents)[0]
+                if maxEval < successorEval:
+                    maxEval = successorEval
+                    maxState = successor
+                alpha = max(alpha, maxEval)
+                tmp = self.getValue(successor[0])
+                print(successorEval)
+                print(tmp)
+                if beta <= alpha:
+                    break
+            return (maxEval, maxState[1])
+
+    def getValue(self, gameState):
+        actions = []
+        for legalAction in gameState.getLegalActions(self.index):
+            actions.append(self.evaluate(gameState, legalAction))
+        if actions:
+            return max(actions)
+        else:
+            return 0.0
+
+    def evaluate(self, gameState, action):
+        features = self.getFeatures(gameState, action)
+        weights = self.getWeights(gameState, action)
+        stateEval = sum(features[feature] * weights[feature] for feature in features)
+
+        return stateEval
