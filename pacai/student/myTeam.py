@@ -65,12 +65,6 @@ class OffensiveAgent(ReflexCaptureAgent):
         if len(capsuleList) < len(oldCapsuleList):
             features['ateCapsule'] = 10
 
-        # This should always be True, but better safe than sorry.
-        if (len(foodList) > 0):
-            myPos = successor.getAgentState(self.index).getPosition()
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
-
         # if capsuleList:
         #     myPos = successor.getAgentState(self.index).getPosition()
         #     minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
@@ -116,6 +110,24 @@ class OffensiveAgent(ReflexCaptureAgent):
                 distanceToEnemy *= -.0
 
             features['distanceToEnemy'] = distanceToEnemy
+
+        # This should always be True, but better safe than sorry.
+        if (len(foodList) > 0):
+            # get my position
+            myPos = successor.getAgentState(self.index).getPosition()
+            foodDists = []
+            for food in foodList:
+                # calculate the distance from the current food the enemy
+                distToClosestEnemy = min([self.getMazeDistance(e.getPosition(), food) for e in enemies ], default=None)
+                # calculate the dist from the current food to our position
+                foodDist = self.getMazeDistance(myPos, food)
+                # if the enemy is closer to the food than we are, devalue it
+                if distToClosestEnemy <= foodDist:
+                    foodDists.append(foodDist + foodDist/(distToClosestEnemy + 0.1))
+                else:
+                    foodDists.append(foodDist)
+            minDistance = min(foodDists)
+            features['distanceToFood'] = minDistance
 
         # Discourage stopping
         if (action == Directions.STOP):
