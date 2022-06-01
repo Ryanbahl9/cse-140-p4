@@ -82,6 +82,12 @@ class OffensiveAgent(ReflexCaptureAgent):
         #             features['distanceToFood'] = -100000000000
         #             features['distanceToCapsule'] = minDistance_c
 
+        # This should always be True, but better safe than sorry.
+        if (len(foodList) > 0):
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
+
         # compute dist to enemy
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
@@ -111,23 +117,25 @@ class OffensiveAgent(ReflexCaptureAgent):
 
             features['distanceToEnemy'] = distanceToEnemy
 
-        # This should always be True, but better safe than sorry.
-        if (len(foodList) > 0):
-            # get my position
-            myPos = successor.getAgentState(self.index).getPosition()
-            foodDists = []
-            for food in foodList:
-                # calculate the distance from the current food the enemy
-                distToClosestEnemy = min([self.getMazeDistance(e.getPosition(), food) for e in enemies ], default=None)
-                # calculate the dist from the current food to our position
-                foodDist = self.getMazeDistance(myPos, food)
-                # if the enemy is closer to the food than we are, devalue it
-                if distToClosestEnemy <= foodDist:
-                    foodDists.append(foodDist + foodDist/(distToClosestEnemy + 0.1))
-                else:
-                    foodDists.append(foodDist)
-            minDistance = min(foodDists)
-            features['distanceToFood'] = minDistance
+        # # This should always be True, but better safe than sorry.
+        # if (len(foodList) > 0):
+        #     # get my position
+        #     myPos = successor.getAgentState(self.index).getPosition()
+        #     foodDists = []
+        #     for food in foodList:
+        #         # calculate the distance from the current food the enemy
+        #         distToClosestEnemy = min([self.getMazeDistance(e.getPosition(), food) for e in enemies ], default=None)
+        #         # calculate the dist from the current food to our position
+        #         foodDist = self.getMazeDistance(myPos, food)
+        #         # if the enemy is closer to the food than we are, devalue it
+        #         if distToClosestEnemy <= 4:
+        #             foodDists.append(foodDist + 4/(distToClosestEnemy + 0.1))
+        #         else:
+        #             foodDists.append(foodDist)
+        #     minDistance = min(foodDists)
+        #     features['distanceToFood'] = minDistance
+
+
 
         # Discourage stopping
         if (action == Directions.STOP):
