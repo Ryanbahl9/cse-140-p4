@@ -37,7 +37,7 @@ class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
         self.stalemateCounter = 0
-        self.stalemateDistance = 5
+        self.stalemateDistance = 1
 
     def getFeatures(self, gameState, action):
         features = {}
@@ -121,7 +121,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         if (action == Directions.STOP):
             features['stop'] = 1
 
-        if self.stalemateCounter >= 15 and self.getDistToMiddle(successor) <= self.stalemateDistance:
+        if self.stalemateCounter >= 10 and self.getDistToMiddle(successor) <= self.stalemateDistance:
             features['staleMate'] = self.stalemateCounter
         else:
             features['staleMate'] = 0
