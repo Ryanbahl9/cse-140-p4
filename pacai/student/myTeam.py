@@ -133,7 +133,7 @@ class OffensiveAgent(ReflexCaptureAgent):
             # current solution is just prioritize food
             if closestGhost.isScared():
                 distanceToEnemy *= -0.0
-            features["distanceToEnemy"] = distanceToEnemy
+            features["distanceToEnemy"] = -1 / (distanceToEnemy + 0.1)
         # Discourage stopping
         if action == Directions.STOP:
             features["stop"] = 1
@@ -150,7 +150,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         return {
             "successorScore": 100,
             "distanceToFood": 1,
-            "distanceToEnemy": 100,
+            "distanceToEnemy": 1,
             "stop": -200,
             "distanceToCapsule": 0,
             "eatCapsule": 1,
@@ -207,8 +207,10 @@ class DefensiveAgent(ReflexCaptureAgent):
 
         successor = self.getSuccessor(gameState, action)
         myState = successor.getAgentState(self.index)
-        if not myState.isScared():
-            myPos = myState.getPosition()
+        myPos = myState.getPosition()
+        if (
+            not myState.isScared()
+        ):  # and myPos[0]>20:#:gameState.getInitialLayout().width/2: # and not already on the other side
 
             # Computes whether we're on defense (1) or offense (0).
             features["onDefense"] = 1
