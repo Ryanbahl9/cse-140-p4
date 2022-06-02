@@ -1,13 +1,7 @@
 import math
-from pacai.core import distance
 from pacai.agents.capture.capture import CaptureAgent
-from pacai.util import reflection
-# from pacai.agents.capture.offense import OffensiveReflexAgent
-# from pacai.agents.capture.defense import DefensiveReflexAgent
 from pacai.agents.capture.reflex import ReflexCaptureAgent
 from pacai.core.directions import Directions
-from pacai.student.multiagents import ReflexAgent
-
 import logging
 import random
 import time
@@ -15,9 +9,14 @@ from pacai.util import probability
 from pacai.util import util
 
 
-def createTeam(firstIndex, secondIndex, isRed,
-        first = 'pacai.agents.capture.dummy.DummyAgent',
-        second = 'pacai.agents.capture.dummy.DummyAgent', **kwargs):
+def createTeam(
+    firstIndex,
+    secondIndex,
+    isRed,
+    first="pacai.agents.capture.dummy.DummyAgent",
+    second="pacai.agents.capture.dummy.DummyAgent",
+    **kwargs
+):
     """
     This function should return a list of two agents that will form the capture team,
     initialized using firstIndex and secondIndex as their agent indexed.
@@ -33,16 +32,18 @@ def createTeam(firstIndex, secondIndex, isRed,
         secondAgent(secondIndex, **kwargs),
     ]
 
+
 class OffensiveAgent(ReflexCaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
         self.stalemateCounter = 0
         self.stalemateDistance = 3
-        self.lastAction=None
+        self.lastAction = None
+
     def getFeatures(self, gameState, action):
         features = {}
         successor = self.getSuccessor(gameState, action)
-        features['successorScore'] = self.getScore(successor)
+        features["successorScore"] = self.getScore(successor)
 
         # Compute distance to the nearest food.
         foodList = self.getFood(successor).asList()
@@ -51,7 +52,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         capsuleList = self.getCapsules(successor)
         oldCapsuleList = self.getCapsules(gameState)
 
-        # Get own position 
+        # Get own position
         myPos = successor.getAgentState(self.index).getPosition()
 
         # # Add capsule as food
@@ -59,12 +60,12 @@ class OffensiveAgent(ReflexCaptureAgent):
 
         # reward PacMan for getting close to and eating a capsule
         if oldCapsuleList:
-            minDist = min([self.getMazeDistance(myPos, capsule) for capsule in oldCapsuleList])
-            features['eatCapsule'] = 1/(minDist + 0.1)
-        
+            minDist = min(
+                [self.getMazeDistance(myPos, capsule) for capsule in oldCapsuleList]
+            )
+            features["eatCapsule"] = 1 / (minDist + 0.1)
         if len(capsuleList) < len(oldCapsuleList):
-            features['ateCapsule'] = 10
-
+            features["ateCapsule"] = 10
         # if capsuleList:
         #     myPos = successor.getAgentState(self.index).getPosition()
         #     minDistance = min([self.getMazeDistance(myPos, cap) for cap in capsuleList])
@@ -85,31 +86,32 @@ class OffensiveAgent(ReflexCaptureAgent):
         # compute dist to enemy
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
 
-
         # # This should always be True, but better safe than sorry.
         # if (len(foodList) > 0):
         #     myPos = successor.getAgentState(self.index).getPosition()
         #     minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
         #     features['distanceToFood'] = 1/(minDistance + 0.1)
-        
+
         # This should always be True, but better safe than sorry.
-        if (len(foodList) > 0):
+        if len(foodList) > 0:
             # get my position
             myPos = successor.getAgentState(self.index).getPosition()
             foodDists = []
             for food in foodList:
                 # calculate the distance from the current food the enemy
-                distToClosestEnemy = min([self.getMazeDistance(e.getPosition(), food) for e in enemies ], default=None)
+                distToClosestEnemy = min(
+                    [self.getMazeDistance(e.getPosition(), food) for e in enemies],
+                    default=None,
+                )
                 # calculate the dist from the current food to our position
                 foodDist = self.getMazeDistance(myPos, food)
                 # if the enemy is closer to the food than we are, devalue it
                 if distToClosestEnemy > 2 or len(foodList) <= 2:
                     foodDists.append(foodDist)
             minDistance = min(foodDists, default=0)
-            features['distanceToFood'] = 1/(minDistance + 0.1)
-
+            features["distanceToFood"] = 1 / (minDistance + 0.1)
         defenders = [a for a in enemies if a.isGhost() and a.getPosition() is not None]
-        if (len(defenders) > 0):
+        if len(defenders) > 0:
             # dists = [distance.manhattan(myPos, a.getPosition()) for a in defenders]
             dists = []
             closestGhost = None
@@ -126,37 +128,36 @@ class OffensiveAgent(ReflexCaptureAgent):
             # if ghost is within 5 distance of pacman
             if dists and minDist < 5 and successor.getAgentState(self.index).isPacman():
                 distanceToEnemy = minDist
-
             # if ghosts are scared then go towards them
             # THIS IS NOT WORKING PACMAN STILL RUNS AWAY FROM SCARED GHOSTS
             # current solution is just prioritize food
             if closestGhost.isScared():
-                distanceToEnemy *= -.0
-
-            features['distanceToEnemy'] = distanceToEnemy
-
+                distanceToEnemy *= -0.0
+            features["distanceToEnemy"] = distanceToEnemy
         # Discourage stopping
-        if (action == Directions.STOP):
-            features['stop'] = 1
-
-        if self.stalemateCounter >= 10 and self.getDistToMiddle(successor) <= self.stalemateDistance:
-            features['staleMate'] = self.stalemateCounter
+        if action == Directions.STOP:
+            features["stop"] = 1
+        if (
+            self.stalemateCounter >= 10
+            and self.getDistToMiddle(successor) <= self.stalemateDistance
+        ):
+            features["staleMate"] = self.stalemateCounter
         else:
-            features['staleMate'] = 0
+            features["staleMate"] = 0
         return features
 
     def getWeights(self, gameState, action):
         return {
-            'successorScore': 100,
-            'distanceToFood': 1,
-            'distanceToEnemy': 100,
-            'stop': -200,
-            'distanceToCapsule': 0,
-            'eatCapsule': 1,
-            'ateCapsule': 100,
-            'staleMate': -1
+            "successorScore": 100,
+            "distanceToFood": 1,
+            "distanceToEnemy": 100,
+            "stop": -200,
+            "distanceToCapsule": 0,
+            "eatCapsule": 1,
+            "ateCapsule": 100,
+            "staleMate": -1,
         }
-    
+
     def chooseAction(self, gameState):
         """
         Picks among the actions with the highest return from `ReflexCaptureAgent.evaluate`.
@@ -165,15 +166,16 @@ class OffensiveAgent(ReflexCaptureAgent):
         actions = gameState.getLegalActions(self.index)
 
         # increment stalemate counter
-        
+
         if self.getDistToMiddle(gameState) <= self.stalemateDistance:
             self.stalemateCounter = self.stalemateCounter + 1
         else:
             self.stalemateCounter = 0
-
         start = time.time()
         values = [self.evaluate(gameState, a) for a in actions]
-        logging.debug('evaluate() time for agent %d: %.4f' % (self.index, time.time() - start))
+        logging.debug(
+            "evaluate() time for agent %d: %.4f" % (self.index, time.time() - start)
+        )
 
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
@@ -187,7 +189,7 @@ class OffensiveAgent(ReflexCaptureAgent):
         # self.lastAction = nextAction
         # return nextAction
         return random.choice(bestActions)
-    
+
     def getDistToMiddle(self, gameState):
         myPos = gameState.getAgentState(self.index).getPosition()
         middle = int(gameState.getInitialLayout().width / 2)
@@ -202,26 +204,28 @@ class DefensiveAgent(ReflexCaptureAgent):
 
     def getFeatures(self, gameState, action):
         features = {}
-        
+
         successor = self.getSuccessor(gameState, action)
         myState = successor.getAgentState(self.index)
         if not myState.isScared():
             myPos = myState.getPosition()
 
             # Computes whether we're on defense (1) or offense (0).
-            features['onDefense'] = 1
-            if (myState.isPacman()):
-                features['onDefense'] = 0
-
+            features["onDefense"] = 1
+            if myState.isPacman():
+                features["onDefense"] = 0
             # Computes distance to invaders we can see.
             enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-            invaders = [a for a in enemies if a.isPacman() and a.getPosition() is not None]
-            features['numInvaders'] = len(invaders)
-            
-            
-            if (len(invaders) > 0):
-                dists = [(self.getMazeDistance(myPos, a.getPosition()), a) for a in invaders]
-                features['invaderDistance'], closestInvader = min(dists)
+            invaders = [
+                a for a in enemies if a.isPacman() and a.getPosition() is not None
+            ]
+            features["numInvaders"] = len(invaders)
+
+            if len(invaders) > 0:
+                dists = [
+                    (self.getMazeDistance(myPos, a.getPosition()), a) for a in invaders
+                ]
+                features["invaderDistance"], closestInvader = min(dists)
             # when there are no invaders go the middle of the layout
             else:
                 red = gameState.getRedTeamIndices() == self.getTeam(gameState)
@@ -229,90 +233,99 @@ class DefensiveAgent(ReflexCaptureAgent):
                     modifier = 2.3
                 else:
                     modifier = 1.7
-                middle = [int(gameState.getInitialLayout().width / modifier), int(gameState.getInitialLayout().height / 2)]
+                middle = [
+                    int(gameState.getInitialLayout().width / modifier),
+                    int(gameState.getInitialLayout().height / 2),
+                ]
                 while gameState.hasWall(middle[0], middle[1]):
                     if red:
                         middle[0] = middle[0] - 1
                     else:
                         middle[0] = middle[0] + 1
                 midDist = self.getMazeDistance(myPos, tuple(middle))
-                features['waitMiddle'] = midDist
-
-            if (action == Directions.STOP):
-                features['stop'] = 1
-
+                features["waitMiddle"] = midDist
+            if action == Directions.STOP:
+                features["stop"] = 1
             rev = Directions.REVERSE[gameState.getAgentState(self.index).getDirection()]
-            if (action == rev):
-                features['reverse'] = 1
-            
-            # calculates invaderFoodDistance which is the distance to the 
-            # food closest to the closest invader 
-            if (len(invaders) > 0):
+            if action == rev:
+                features["reverse"] = 1
+            # calculates invaderFoodDistance which is the distance to the
+            # food closest to the closest invader
+            if len(invaders) > 0:
                 foodList = self.getFoodYouAreDefending(successor).asList()
 
                 # This should always be True, but better safe than sorry.
-                if (len(foodList) > 0):
+                if len(foodList) > 0:
                     myPos = successor.getAgentState(self.index).getPosition()
                     invaderPos = closestInvader.getPosition()
-                    closestFood = min([(self.getMazeDistance(invaderPos, food), food) for food in foodList])
+                    closestFood = min(
+                        [
+                            (self.getMazeDistance(invaderPos, food), food)
+                            for food in foodList
+                        ]
+                    )
                     # print(self.getMazeDistance(myPos, closestFood[1]))
-                    features['invaderFoodDistance'] = self.getMazeDistance(myPos, closestFood[1])
-
+                    features["invaderFoodDistance"] = self.getMazeDistance(
+                        myPos, closestFood[1]
+                    )
             # supposedly makes the scared defender run from enemy pacman
-            #NOT WELL TESTED
-            features['runWhileScared'] = 0
+            # NOT WELL TESTED
+            features["runWhileScared"] = 0
             if myState.isScared():
                 dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
                 invaderDist = min(dists)
-                features['runWhileScared'] = invaderDist
-
-            
-        else: # if agent is scared
-            features=OffensiveAgent.getFeatures(self,gameState, action)
-        return features 
+                features["runWhileScared"] = invaderDist
+        else:  # if agent is scared
+            features = OffensiveAgent.getFeatures(self, gameState, action)
+        return features
 
     def getWeights(self, gameState, action):
-        
+
         successor = self.getSuccessor(gameState, action)
         myState = successor.getAgentState(self.index)
         if not myState.isScared():
             return {
-                'numInvaders': -1000,
-                'onDefense': 100,
-                'invaderDistance': -10,
-                'stop': -100,
-                'reverse': -2,
-                'invaderFoodDistance': 0,
-                'waitMiddle': -100,
-                'runWhileScared': 100,
+                "numInvaders": -1000,
+                "onDefense": 100,
+                "invaderDistance": -10,
+                "stop": -100,
+                "reverse": -2,
+                "invaderFoodDistance": 0,
+                "waitMiddle": -100,
+                "runWhileScared": 100,
             }
         else:
             return OffensiveAgent.getWeights(self, gameState, action)
+
     def getAction(self, gameState):
         return super().getAction(gameState)
+
 
 class GeneralAgent(CaptureAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
 
-    def chooseAction(self, gameState):  
-        return None  
+    def chooseAction(self, gameState):
+        return None
+
 
 class OffensiveQLearningAgent(OffensiveAgent):
     """
-        List of Class values:
-            self.index              : Index of current agent
-            self.red                : Whether or not you're on the red team
-            self.agentsOnTeam       : Agent objects controlling you and your teammates
-            self.distance           : Maze distance calculator
-            self.observationHistory : A history of observations
-            self.timeForComputing   : Time to spend each turn on computing maze distances
+    List of Class values:
+        self.index              : Index of current agent
+        self.red                : Whether or not you're on the red team
+        self.agentsOnTeam       : Agent objects controlling you and your teammates
+        self.distance           : Maze distance calculator
+        self.observationHistory : A history of observations
+        self.timeForComputing   : Time to spend each turn on computing maze distances
 
-        Notes:
-            This probably could not be used for two agents 
+    Notes:
+        This probably could not be used for two agents
     """
-    def __init__(self, index, alpha = 0.005, epsilon = 0.05,
-            gamma = 1, numTraining = 10, **kwargs):
+
+    def __init__(
+        self, index, alpha=0.005, epsilon=0.05, gamma=1, numTraining=10, **kwargs
+    ):
         """
         Args:
             alpha: The learning rate.
@@ -330,14 +343,13 @@ class OffensiveQLearningAgent(OffensiveAgent):
         self.weights = {}
 
     def chooseAction(self, gameState):
-        
+
         self.update(gameState)
 
         if probability.flipCoin(self.epsilon):
             action = random.choice(gameState.getLegalActions(self.index))
         else:
             action = self.getPolicy(gameState)
-
         self.lastAction = action
         return action
 
@@ -350,7 +362,7 @@ class OffensiveQLearningAgent(OffensiveAgent):
                 max_q_val = qVal
                 max_action = action
         return max_action
-    
+
     def getQValue(self, state, action):
         qVal = 0
         features = self.getFeatures(state, action)
@@ -369,58 +381,63 @@ class OffensiveQLearningAgent(OffensiveAgent):
         discount = self.discountRate
         qPrimeVal = self.getValue(gameState)
         qVal = self.getQValue(lastState, lastAction)
-        
+
         correction = (reward + discount * qPrimeVal) - qVal
 
         features = self.getFeatures(lastState, lastAction)
         for feature in features:
             oldWeight = self.getWeight(feature)
             newWeight = oldWeight + self.alpha * correction * features[feature]
-            self.setWeight(feature, newWeight) 
+            self.setWeight(feature, newWeight)
 
     # Calculates the reward we got for the previous action
     def getReward(self, gameState):
-        """ ----- Notes -----
+        """----- Notes -----
 
         This will take some thought:
             In P3 the reward is the change in score after we took the last action.
-            
-            We can't use this approach here because the score is affected by our opponents and the 
+
+            We can't use this approach here because the score is affected by our opponents and the
             other agent on our team.
 
             Some ideas for how to calculate reward for offensive agents:
-                - Use the change in amount of food (i.e. add a reward if we eat a food) 
+                - Use the change in amount of food (i.e. add a reward if we eat a food)
                 - Add reward if we eat a power up
-            
-            I'm not sure how we will calculate rewards for invaders because there is no function 
+
+            I'm not sure how we will calculate rewards for invaders because there is no function
             to tell if we ate an invader
 
         """
         # TODO: rewrite this function
-        
+
         prevObv = self.getPreviousObservation()
-        reward = len(self.getFood(prevObv).asList()) - len(self.getFood(gameState).asList()) + len(self.getCapsules(prevObv)) - len(self.getCapsules(gameState))
+        reward = (
+            len(self.getFood(prevObv).asList())
+            - len(self.getFood(gameState).asList())
+            + len(self.getCapsules(prevObv))
+            - len(self.getCapsules(gameState))
+        )
         if reward > 0:
-            print('reward: ' + str(reward))
+            print("reward: " + str(reward))
         return reward
 
     def getWeight(self, feature):
         if feature in self.weights:
             self.weights.get(feature, 1)
         initialWeights = {
-            'successorScore': 100,
-            'distanceToFood': -1,
-            'distanceToEnemy': 100,
-            'stop': -200,
-            'distanceToCapsule': 0,
-            'eatCapsule': -2,
-            'ateCapsule': 100
+            "successorScore": 100,
+            "distanceToFood": -1,
+            "distanceToEnemy": 100,
+            "stop": -200,
+            "distanceToCapsule": 0,
+            "eatCapsule": -2,
+            "ateCapsule": 100,
         }
         return initialWeights.get(feature, 1)
-    
+
     def setWeight(self, feature, value):
         if feature in self.weights and self.weights.get(feature, 0) != value:
-            print(str(feature) + ': ' + str(self.weights[feature]))
+            print(str(feature) + ": " + str(self.weights[feature]))
         self.weights[feature] = value
 
     def getSuccessor(self, gameState, action):
@@ -431,11 +448,12 @@ class OffensiveQLearningAgent(OffensiveAgent):
         successor = gameState.generateSuccessor(self.index, action)
         pos = successor.getAgentState(self.index).getPosition()
 
-        if (pos != util.nearestPoint(pos)):
+        if pos != util.nearestPoint(pos):
             # Only half a grid position was covered.
             return successor.generateSuccessor(self.index, action)
         else:
             return successor
+
     def getValue(self, gameState):
         actions = []
         for legalAction in gameState.getLegalActions(self.index):
@@ -445,17 +463,21 @@ class OffensiveQLearningAgent(OffensiveAgent):
         else:
             return 0.0
 
+
 class OffensiveMiniMaxAgent(OffensiveAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index)
-        
+
         self.weights = {}
-    
+
     def generateAllSuccessorStates(self, gameState, index):
         legalActions = gameState.getLegalActions(index)
-        rtn = [(gameState.generateSuccessor(index, action), action) for action in legalActions]
+        rtn = [
+            (gameState.generateSuccessor(index, action), action)
+            for action in legalActions
+        ]
         for x in rtn:
-            if x[1] == 'Stop':
+            if x[1] == "Stop":
                 rtn.remove(x)
         return rtn
 
@@ -473,20 +495,20 @@ class OffensiveMiniMaxAgent(OffensiveAgent):
         numAgents = len(listOfAgents)
         agentIndex = listOfAgents[level % numAgents]
 
-        # Return if depth reached 
+        # Return if depth reached
         if level >= (depth * numAgents):
             return (self.getValue(state), None)
-
         successorStates = self.generateAllSuccessorStates(state, agentIndex)
 
         # Return if action reached
         if len(successorStates) == 0:
             return (self.getValue(state), None)
-            
         if agentIndex in self.getOpponents(state):
             minEval = math.inf
             for successor in successorStates:
-                successorEval = self.getActionRecur(successor[0], level + 1, listOfAgents)[0]
+                successorEval = self.getActionRecur(
+                    successor[0], level + 1, listOfAgents
+                )[0]
                 if minEval > successorEval:
                     minEval = successorEval
                     minAction = successor[1]
@@ -494,7 +516,9 @@ class OffensiveMiniMaxAgent(OffensiveAgent):
         else:
             maxEval = -math.inf
             for successor in successorStates:
-                successorEval = self.getActionRecur(successor[0], level + 1, listOfAgents)[0]
+                successorEval = self.getActionRecur(
+                    successor[0], level + 1, listOfAgents
+                )[0]
                 if maxEval < successorEval:
                     maxEval = successorEval
                     maxAction = successor[1]
@@ -516,7 +540,8 @@ class OffensiveMiniMaxAgent(OffensiveAgent):
         if agentIndex in self.getOpponents(state):
             minEval = math.inf
             for successor in successorStates:
-                successorEval = self.getActionRecurAB(successor[0], level + 1, alpha, beta, listOfAgents)[0]
+                successorEval = self.getActionRecurAB(successor[0], \
+                    level + 1, alpha, beta, listOfAgents)[0]
                 if minEval > successorEval:
                     minEval = successorEval
                     minState = successor
@@ -527,7 +552,8 @@ class OffensiveMiniMaxAgent(OffensiveAgent):
         else:
             maxEval = -math.inf
             for successor in successorStates:
-                successorEval = self.getActionRecurAB(successor[0], level + 1, alpha, beta, listOfAgents)[0]
+                successorEval = self.getActionRecurAB(successor[0], \
+                    level + 1, alpha, beta, listOfAgents)[0]
                 if maxEval < successorEval:
                     maxEval = successorEval
                     maxState = successor
